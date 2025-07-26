@@ -1,0 +1,19 @@
+{
+  "name": "colored",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --out-dir .local/dist --minify",
+    "watch": "tsup src/index.ts --format esm --out-dir .local/dist --watch --onSuccess \"node .local/dist/index.js\"",
+    "start": "tsup src/index.ts --format esm --out-dir .local/dist --onSuccess \"node .local/dist/index.js\""
+  },
+  "devDependencies": {
+    "@types/node": "^24.1.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "zx": "^8.7.1"
+  }
+}

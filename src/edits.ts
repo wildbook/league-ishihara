@@ -1,21 +1,27 @@
-import { b, v } from "./utils/bin.js";
+import { e, m, TForm } from "./utils/bin.js";
 
-export default {
+import { t } from "./utils/bin_types.js";
+
+type Edits = {
+  [wadPath: string]: { [bin: string]: TForm };
+};
+
+export const edits: Edits = {
   "Champions/Xerath.wad.client": {
     "a120033c1ad32987.json": [
-      b.chain(
-        "Characters/Xerath/Skins/Skin5/Particles/Xerath_Skin05_Q_aoe_reticle_red",
-        "ComplexEmitterDefinitionData",
+      "Characters/Xerath/Skins/Skin5/Particles/Xerath_Skin05_Q_aoe_reticle_red",
+      "ComplexEmitterDefinitionData",
 
-        b.iterate(
-          // We don't want to use the stupid texture.
-          b.remove("ParticleColorTexture"),
-          b.modify("ColorRenderFlags", (x: number) => x & ~1),
+      e.iterate(
+        // We don't want to use the stupid texture.
+        e.remove("ParticleColorTexture"),
+        e.modify("ColorRenderFlags", m.bit_clear(1)),
 
-          // To prevent it from defaulting to white, add a color.
-          b.append(v.struct("Color", "embed", "ValueColor", [v.field("ConstantValue", "vec4", v.rgb(230, 100, 255))])),
-        ),
+        // To prevent it from defaulting to white, add a color.
+        e.append("Color", t.ValueColor([0.9, 0.4, 1, 1])),
       ),
     ],
   },
 };
+
+export default edits;

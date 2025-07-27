@@ -1,8 +1,12 @@
 import path from "node:path";
 import { promises as fsa } from "node:fs";
 
+import { JSONParse, JSONStringify } from "json-with-bigint";
+
 import edits from "./edits.js";
 import cfg from "./config.js";
+
+import { exec as runEdit } from "./utils/bin.js";
 
 import logger from "node-color-log";
 logger.setLevel("debug");
@@ -50,17 +54,15 @@ await fsa.mkdir(tempMods, { recursive: true });
 for (const [wadPath, bins] of Object.entries(edits)) {
   logger.info(`Processing edits for: ${wadPath}`);
 
-  for (const [bin, edits] of Object.entries(bins)) {
+  for (const [bin, edit] of Object.entries(bins)) {
     let ent = path.join(tempText, wadPath, bin);
     logger.info(`Editing file: ${ent}`);
 
     let data = await fsa.readFile(ent);
-    let json = JSON.parse(data.toString());
-    await fsa.writeFile(ent, JSON.stringify(json, null, 2));
+    let json = JSONParse(data.toString());
+    await fsa.writeFile(ent, JSONStringify(json, null, 2));
 
-    for (const edit of edits) {
-      edit(json.entries);
-    }
+    runEdit(json.entries, edit);
 
     let wadName = path.basename(wadPath);
 
@@ -69,7 +71,7 @@ for (const [wadPath, bins] of Object.entries(edits)) {
     logger.info(`Writing edited file: ${full}`);
 
     await fsa.mkdir(root, { recursive: true });
-    await fsa.writeFile(full, JSON.stringify(json, null, 2));
+    await fsa.writeFile(full, JSONStringify(json, null, 2));
   }
 }
 

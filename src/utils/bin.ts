@@ -1,14 +1,22 @@
 import { IntRange } from "./ts.js";
 import logger from "node-color-log";
 
-type TFormSelect = string;
-type TFormFn = (obj: any) => any;
-
-export type TForm = TFormSelect | TFormFn;
+import { v, Value } from "./bin_values.js";
 
 const token = {
   stop: {},
 };
+
+type TFormSelect = string;
+type TFormChain = TForm[];
+type TFormFn = (obj: any) =>
+  | undefined
+  // A transformed object.
+  | any
+  // A stop token, abort the current chain.
+  | typeof token.stop;
+
+export type TForm = TFormSelect | TFormChain | TFormFn;
 
 const stop = () => token.stop;
 
@@ -21,13 +29,17 @@ const toTransform = (transform: TForm): TFormFn => {
     return select(transform);
   }
 
+  if (Array.isArray(transform)) {
+    return chain(...transform);
+  }
+
   throw new Error(`Invalid transform: ${transform}`);
 };
 
-const items: TFormFn = (obj: any) => obj.items ?? obj.value.items ?? obj;
+const items: TFormFn = (obj) => obj.items ?? obj.value.items ?? obj;
 const chain =
   (...transforms: TForm[]): TFormFn =>
-  (obj: any) => {
+  (obj) => {
     for (const transform of transforms) {
       obj = toTransform(transform)(obj);
 
@@ -62,15 +74,15 @@ const iterate =
 const modify =
   (key: string, val): TFormFn =>
   (obj) => {
-    let v;
+    let run;
 
     if (typeof val !== "function") {
-      v = () => val;
+      run = () => val;
     } else {
-      v = val;
+      run = val;
     }
 
-    (<any>select(key)(obj)).value = v(obj.value);
+    (<any>select(key)(obj)).value = run(obj.value);
     return obj;
   };
 
@@ -92,24 +104,16 @@ const remove =
   };
 
 const append =
-  (field): TFormFn =>
+  (key: string, val: Value): TFormFn =>
   (obj) => {
-    items(obj).push(structuredClone(field));
+    items(obj).push({
+      key: key,
+      type: val.type,
+      value: v.serialize(structuredClone(val)),
+    });
+
     return obj;
   };
-
-const object = (key: string, type: string, value: any) => ({
-  key: key,
-  type: type,
-  value: value,
-});
-
-const field = object;
-const struct = (key: string, type: string, ty: string, fields: any[]) =>
-  object(key, type, {
-    items: fields ?? [],
-    name: ty,
-  });
 
 const debug: TFormFn = (obj: any) => {
   console.dir(obj, { depth: 5 });
@@ -123,17 +127,8 @@ const print =
     return obj;
   };
 
-const rgba = (
-  r: IntRange<0, 256>,
-  g: IntRange<0, 256>,
-  b: IntRange<0, 256>,
-  a: number, // 0.0 to 1.0
-) => [r / 255, g / 255, b / 255, a];
-
-const rgb = (r: IntRange<0, 256>, g: IntRange<0, 256>, b: IntRange<0, 256>) => rgba(r, g, b, 1);
-
 // Exports for bin pipeline.
-export const b = {
+export const e = {
   items,
   chain,
   select,
@@ -152,12 +147,12 @@ export const dbg = {
   print,
 };
 
-// Exports for variable creation.
-export const v = {
-  rgba,
-  rgb,
-
-  object,
-  field,
-  struct,
+// Exports for .modify helpers.
+export const m = {
+  bit_write: (val: number) => (x: number) => x | val,
+  bit_clear: (val: number) => (x: number) => x & ~val,
 };
+
+export function exec(entries: any, tform: TForm) {
+  return toTransform(tform)(entries);
+}

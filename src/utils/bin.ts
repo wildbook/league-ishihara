@@ -1,4 +1,3 @@
-import { IntRange } from "./ts.js";
 import logger from "node-color-log";
 
 import { v, Value } from "./bin_values.js";

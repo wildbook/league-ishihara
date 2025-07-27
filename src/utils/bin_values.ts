@@ -229,38 +229,38 @@ export namespace convert {
   type VListLike = VList | VList2 | VOption;
   type VStructLike = VEmbed | VPointer;
 
-  let serializers: { [x in keyof IFull]: (x: Value) => any };
+  let val2bin: { [x in keyof IFull]: (x: Value) => any };
 
-  const serializeList = (i: VListLike): any => {
+  const v2bList = (i: VListLike): any => {
     return {
       valueType: i.data.valueType,
-      items: i.data.items.map(serializers[i.data.valueType]),
+      items: i.data.items.map(val2bin[i.data.valueType]),
     };
   };
 
-  const serializeMap = (i: VMap): any => {
+  const v2bMap = (i: VMap): any => {
     return {
       valueType: i.data.valueType,
       keyType: i.data.keyType,
       items: Object.entries(i.data.items).map(([key, value]) => ({
         key,
-        value: serializers[i.data.valueType](value),
+        value: val2bin[i.data.valueType](value),
       })),
     };
   };
 
-  const serializeStruct = (i: VStructLike): any => ({
+  const v2bStruct = (i: VStructLike): any => ({
     name: i.data.name,
     items: [
       ...Object.entries(i.data.items).map(([key, value]) => ({
         key,
         type: value.type,
-        value: serializers[value.type](value),
+        value: val2bin[value.type](value),
       })),
     ],
   });
 
-  serializers = {
+  val2bin = {
     bool: (x) => x.data,
     i8: (x) => x.data,
     u8: (x) => x.data,
@@ -282,19 +282,19 @@ export namespace convert {
     link: (x) => x.data, // Placeholder, needs proper serialization
     flag: (x) => x.data,
 
-    list: (x) => serializeList(x as VListLike),
-    list2: (x) => serializeList(x as VListLike),
-    option: (x) => serializeList(x as VListLike),
+    list: (x) => v2bList(x as VListLike),
+    list2: (x) => v2bList(x as VListLike),
+    option: (x) => v2bList(x as VListLike),
 
-    embed: (x) => serializeStruct(x as VStructLike),
-    pointer: (x) => serializeStruct(x as VPointer),
-    map: (x) => serializeMap(x as VMap),
+    embed: (x) => v2bStruct(x as VStructLike),
+    pointer: (x) => v2bStruct(x as VPointer),
+    map: (x) => v2bMap(x as VMap),
   };
 
-  export const from = serializers;
+  export const from = val2bin;
 }
 
-export const serialize = (value: Value): any => convert.from[value.type](value);
+export const val2bin = (value: Value): any => convert.from[value.type](value);
 
 export const v = {
   bool,
@@ -324,5 +324,5 @@ export const v = {
   embed,
   pointer,
 
-  serialize,
+  val2bin,
 };

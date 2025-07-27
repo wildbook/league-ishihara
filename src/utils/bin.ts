@@ -6,7 +6,7 @@ const token = {
   stop: {},
 };
 
-type TFormSelect = string;
+type TFormSelect = number | string | RegExp;
 type TFormChain = TForm[];
 type TFormFn = (obj: any) =>
   | undefined
@@ -19,12 +19,32 @@ export type TForm = TFormSelect | TFormChain | TFormFn;
 
 const stop = () => token.stop;
 
+const selectMatches = (key: TFormSelect, obj: any): boolean => {
+  if (typeof key === "string") {
+    return obj.key === key;
+  }
+
+  if (key instanceof RegExp) {
+    return key.test(obj.key);
+  }
+
+  throw new Error(`Invalid key type: ${typeof key}`);
+};
+
 const toTransform = (transform: TForm): TFormFn => {
   if (typeof transform === "function") {
     return transform;
   }
 
   if (typeof transform === "string") {
+    return select(transform);
+  }
+
+  if (typeof transform === "number") {
+    return select(transform);
+  }
+
+  if (transform instanceof RegExp) {
     return select(transform);
   }
 
@@ -52,26 +72,54 @@ const chain =
   };
 
 const select =
-  (key: string): TFormFn =>
+  (key: TFormSelect): TFormFn =>
   (obj) =>
-    Object.values(items(obj)).find((e: any) => e.key === key);
+    Object.values(items(obj)).find((e: any) => selectMatches(key, e));
+
+const filter =
+  (key: TFormSelect): TFormFn =>
+  (obj) => ({
+    items: Object.values(items(obj)).filter((e: any) => selectMatches(key, e)),
+  });
 
 const try_ =
   (transform: TForm, or?: TForm): TFormFn =>
   (obj) => {
-    let res = toTransform(transform)(obj);
-    return res || toTransform(or || stop)(obj);
+    try {
+      let res = toTransform(transform)(obj);
+      if (res) return res;
+    } catch (e) {}
+
+    return toTransform(or || stop)(obj);
   };
 
 const iterate =
-  (...transforms: TForm[]): TFormFn =>
+  (transforms: TForm): TFormFn =>
   (obj) => {
-    Object.values(items(obj)).forEach(chain(...transforms));
+    Object.values(items(obj)).forEach(chain(transforms));
     return obj;
   };
 
+const nth =
+  (n: number): TFormFn =>
+  (obj) =>
+    items(obj)[n];
+
+const if_ =
+  (key: TFormSelect, th: TForm, el?: TForm): TFormFn =>
+  (obj) => {
+    let i = select(key)(obj);
+    if (i !== undefined) {
+      obj = toTransform(th)(obj);
+    } else if (el !== undefined) {
+      obj = toTransform(el)(obj);
+    }
+    return obj;
+  };
+
+// TODO: Use values instead? Needs a deserialize function for Value.
 const modify =
-  (key: string, val): TFormFn =>
+  (key: TFormSelect, val): TFormFn =>
   (obj) => {
     let run;
 
@@ -86,11 +134,11 @@ const modify =
   };
 
 const remove =
-  (key: string): TFormFn =>
+  (key: TFormSelect): TFormFn =>
   (obj) => {
     let i = items(obj);
 
-    let found = Object.entries(i).find(([_, v]: [any, any]) => v.key === key);
+    let found = Object.entries(i).find(([_, v]: [any, any]) => selectMatches(key, v));
     if (!found) {
       logger.warn(`Key "${key}" not found in object`, obj);
       throw new Error(`Key "${key}" not found.`);
@@ -108,7 +156,7 @@ const append =
     items(obj).push({
       key: key,
       type: val.type,
-      value: v.serialize(structuredClone(val)),
+      value: v.val2bin(structuredClone(val)),
     });
 
     return obj;
@@ -130,12 +178,17 @@ const print =
 export const e = {
   items,
   chain,
+  filter,
   select,
+
+  nth,
   iterate,
+
   modify,
   remove,
   append,
 
+  if_,
   try_,
   stop,
 };

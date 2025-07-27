@@ -4,7 +4,7 @@ export default {
 
     ritoBin: "./bins/ritobin/ritobin_cli.exe",
     modTool: "./bins/cslol-tools/mod-tools.exe",
-    wad2bin: "./bins/cslol-tools/wad-extract.exe",
+    wadTool: "./bins/wadtools.exe",
 
     install: ".local/install",
     overlay: ".local/overlay",

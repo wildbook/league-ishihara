@@ -29,7 +29,7 @@ logger.info("Extracting files.");
 if (await fsa.stat(cfg.paths.install).catch(() => false)) await fsa.rm(cfg.paths.install, { recursive: true });
 if (await fsa.stat(cfg.paths.overlay).catch(() => false)) await fsa.rm(cfg.paths.overlay, { recursive: true });
 
-let cache = { used: false, key: "" };
+let cache = { used: false, hash: "" };
 
 let ckRef = path.join(cfg.paths.gameDir, cfg.paths.cacheRef);
 let ckKey = path.join(cfg.paths.cache.ckey);
@@ -41,7 +41,9 @@ if (cacheKey) {
 
   logger.debug(`CKey[old]: ${oCkKey ?? "<none>"}`);
   logger.debug(`CKey[new]: ${nCkKey}`);
+
   cache.used = oCkKey === nCkKey;
+  cache.hash = nCkKey;
 
   if (!cache.used) {
     logger.info("Cache key changed, will not reuse caches.");
@@ -52,8 +54,6 @@ if (cacheKey) {
         await fsa.rm(dir, { recursive: true });
       }
     }
-
-    cache.key = nCkKey;
   }
 } else {
   logger.error("Cache reference file not found, will not reuse caches.");
@@ -86,7 +86,10 @@ for (const file of Object.keys(edits)) {
   let iPath = path.join(wadsPath, file);
   let oPath = path.join(cfg.paths.cache.game, file);
 
-  if (!(cache.used && (await fsa.stat(oPath).catch(() => false)))) {
+  let noCache = !cache.used;
+  let noExist = !(await fsa.stat(oPath).catch(() => false));
+
+  if (noCache || noExist) {
     let task = async () => {
       let oText = path.join(cfg.paths.cache.text, file);
 
@@ -104,7 +107,7 @@ taskQueue.length = 0;
 
 logger.info("Writing cache key.");
 await fsa.mkdir(path.dirname(ckKey), { recursive: true });
-await fsa.writeFile(ckKey, cache.key);
+await fsa.writeFile(ckKey, cache.hash);
 
 let tempText = cfg.paths.cache.text;
 let tempMods = cfg.paths.temp.mods;

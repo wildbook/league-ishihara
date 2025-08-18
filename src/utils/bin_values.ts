@@ -134,7 +134,7 @@ export const rgba = (data: [number, number, number, number]): Value => ({ type: 
 export const str = (data: string): Value => ({ type: "string", data });
 export const hash = (data: string): Value => ({ type: "hash", data });
 export const file = (data: any): Value => error("file type is not implemented yet");
-export const link = (data: any): Value => error("link type is not implemented yet");
+export const link = (data: string): Value => ({ type: "link", data });
 export const flag = (data: boolean): Value => ({ type: "flag", data });
 
 const buildPrim = {

@@ -44,7 +44,7 @@ if (cacheKey) {
   cache.used = oCkKey === nCkKey;
 
   if (!cache.used) {
-    logger.debug("Cache key changed, will not reuse caches.");
+    logger.info("Cache key changed, will not reuse caches.");
 
     for (const dir of Object.values(cfg.paths.cache)) {
       if (await fsa.stat(dir).catch(() => false)) {

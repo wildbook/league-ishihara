@@ -59,10 +59,17 @@ const items: TFormFn = (obj) => obj.items ?? obj.value.items ?? obj;
 const chain =
   (...transforms: TForm[]): TFormFn =>
   (obj) => {
-    for (const transform of transforms) {
-      obj = toTransform(transform)(obj);
+    let cur = obj;
 
-      if (obj == token.stop) {
+    for (const transform of transforms) {
+      let res = toTransform(transform)(cur);
+      if (res === undefined) {
+        res = cur; // Transform returned undefined, keep current context.
+      } else {
+        cur = res; // Transform selected a new context.
+      }
+
+      if (cur == token.stop) {
         logger.warn("transform returned `stop` token, aborting.");
         return obj;
       }

@@ -20,7 +20,7 @@ export type TForm = TFormSelect | TFormChain | TFormFn;
 const stop = () => token.stop;
 
 const selectMatches = (key: TFormSelect, obj: any): boolean => {
-  if (typeof key === "string") {
+  if (["string", "number"].includes(typeof key)) {
     return obj.key === key;
   }
 
@@ -151,7 +151,7 @@ const remove =
   };
 
 const append =
-  (key: string, val: Value): TFormFn =>
+  (key: string | number, val: Value): TFormFn =>
   (obj) => {
     items(obj).push({
       key: key,

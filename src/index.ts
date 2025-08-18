@@ -86,7 +86,7 @@ for (const file of Object.keys(edits)) {
   let iPath = path.join(wadsPath, file);
   let oPath = path.join(cfg.paths.cache.game, file);
 
-  if (!(cache.used || (await fsa.stat(oPath).catch(() => false)))) {
+  if (!(cache.used && (await fsa.stat(oPath).catch(() => false)))) {
     let task = async () => {
       let oText = path.join(cfg.paths.cache.text, file);
 

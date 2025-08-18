@@ -9,15 +9,17 @@
     "start": "tsup src/index.ts --format esm --out-dir .local/dist --onSuccess \"node .local/dist/index.js\""
   },
   "devDependencies": {
-    "@types/node": "^24.1.0",
+    "@types/node": "^24.2.1",
     "tsup": "^8.5.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.9.2"
   },
   "dependencies": {
+    "@node-rs/xxhash": "^1.7.6",
     "builder-pattern": "^2.2.0",
+    "fnv1a": "^1.1.1",
     "json-with-bigint": "^3.4.4",
     "node-color-log": "^13.0.3",
-    "zx": "^8.7.1"
+    "zx": "^8.8.0"
   },
   "prettier": {
     "printWidth": 120,

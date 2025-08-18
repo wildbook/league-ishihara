@@ -6,14 +6,20 @@ export default {
     modTool: "./bins/cslol-tools/mod-tools.exe",
     wadTool: "./bins/wadtools.exe",
 
-    install: ".local/install",
-    overlay: ".local/overlay",
+    install: ".local/out-install",
+    overlay: ".local/out-overlay",
+
+    cacheRef: "content-metadata.json",
+
+    cache: {
+      ckey: ".local/data-cache/.key",
+      game: ".local/data-cache/s1-game",
+      text: ".local/data-cache/s2-text",
+    },
 
     temp: {
-      game: ".local/temp/s1-game",
-      text: ".local/temp/s2-text",
-      mods: ".local/temp/s3-mods",
-      done: ".local/temp/s4-done",
+      mods: ".local/data-temp/s3-mods",
+      done: ".local/data-temp/s4-done",
     },
   },
 };

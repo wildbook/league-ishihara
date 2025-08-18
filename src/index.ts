@@ -1,4 +1,5 @@
 import path from "node:path";
+import crypto from "node:crypto";
 import { promises as fsa } from "node:fs";
 
 import { JSONParse, JSONStringify } from "json-with-bigint";
@@ -16,17 +17,61 @@ import "zx/globals";
 $.verbose = true;
 usePowerShell();
 
+function hashBuffer(data: Buffer) {
+  const hash = crypto.createHash("sha256");
+  hash.update(data);
+  return hash.digest("hex");
+}
+
 logger.info("Extracting files.");
 
 // Cleaning up existing install/overlay directories.
-if (await fsa.stat(cfg.paths.install).catch(() => false)) await fsa.rmdir(cfg.paths.install, { recursive: true });
-if (await fsa.stat(cfg.paths.overlay).catch(() => false)) await fsa.rmdir(cfg.paths.overlay, { recursive: true });
+if (await fsa.stat(cfg.paths.install).catch(() => false)) await fsa.rm(cfg.paths.install, { recursive: true });
+if (await fsa.stat(cfg.paths.overlay).catch(() => false)) await fsa.rm(cfg.paths.overlay, { recursive: true });
+
+let cache = { used: false, key: "" };
+
+let ckRef = path.join(cfg.paths.gameDir, cfg.paths.cacheRef);
+let ckKey = path.join(cfg.paths.cache.ckey);
+
+let cacheKey = await fsa.readFile(ckRef);
+if (cacheKey) {
+  let nCkKey = hashBuffer(cacheKey);
+  let oCkKey = (await fsa.readFile(ckKey).catch(() => null))?.toString();
+
+  logger.debug(`CKey[old]: ${oCkKey ?? "<none>"}`);
+  logger.debug(`CKey[new]: ${nCkKey}`);
+  cache.used = oCkKey === nCkKey;
+
+  if (!cache.used) {
+    logger.debug("Cache key changed, will not reuse caches.");
+
+    for (const dir of Object.values(cfg.paths.cache)) {
+      if (await fsa.stat(dir).catch(() => false)) {
+        logger.info(`Removing existing directory: ${dir}`);
+        await fsa.rm(dir, { recursive: true });
+      }
+    }
+
+    cache.key = nCkKey;
+  }
+} else {
+  logger.error("Cache reference file not found, will not reuse caches.");
+}
+
+// Building cache directories.
+for (const dir of Object.values(cfg.paths.temp)) {
+  // Only create the folder if it doesn't already exist.
+  if (!(await fsa.stat(dir).catch(() => false))) {
+    await fsa.mkdir(dir, { recursive: true });
+  }
+}
 
 // Building the temp directory.
 for (const dir of Object.values(cfg.paths.temp)) {
   if (await fsa.stat(dir).catch(() => false)) {
     logger.info(`Removing existing directory: ${dir}`);
-    await fsa.rmdir(dir, { recursive: true });
+    await fsa.rm(dir, { recursive: true });
   }
 
   await fsa.mkdir(dir, { recursive: true });
@@ -34,19 +79,34 @@ for (const dir of Object.values(cfg.paths.temp)) {
 
 let wadsPath = path.join(cfg.paths.gameDir, "DATA", "FINAL");
 
+logger.debug(".wad -> .bin -> .json");
+
+let taskQueue: Promise<void>[] = [];
 for (const file of Object.keys(edits)) {
-  let inputPath = path.join(wadsPath, file);
-  let storePath = path.join(cfg.paths.temp.game, file);
+  let iPath = path.join(wadsPath, file);
+  let oPath = path.join(cfg.paths.cache.game, file);
 
-  logger.info(`Processing file: ${file}`);
-  await fsa.mkdir(storePath, { recursive: true });
+  if (!(cache.used || (await fsa.stat(oPath).catch(() => false)))) {
+    let task = async () => {
+      let oText = path.join(cfg.paths.cache.text, file);
 
-  await $`${cfg.paths.wadTool} extract --input ${inputPath} --output ${storePath} --filter-type bin`;
+      await fsa.mkdir(oPath, { recursive: true });
+      await $`${cfg.paths.wadTool} extract --input ${iPath} --output ${oPath} --filter-type bin`;
+      await $`${cfg.paths.ritoBin} -i bin -o json -r ${oPath} ${oText}`;
+    };
+
+    taskQueue.push(task());
+  }
 }
 
-await $`${cfg.paths.ritoBin} -i bin -o json -r ${cfg.paths.temp.game} ${cfg.paths.temp.text}`;
+await Promise.all(taskQueue);
+taskQueue.length = 0;
 
-let tempText = cfg.paths.temp.text;
+logger.info("Writing cache key.");
+await fsa.mkdir(path.dirname(ckKey), { recursive: true });
+await fsa.writeFile(ckKey, cache.key);
+
+let tempText = cfg.paths.cache.text;
 let tempMods = cfg.paths.temp.mods;
 
 await fsa.mkdir(tempMods, { recursive: true });
@@ -60,7 +120,9 @@ for (const [wadPath, bins] of Object.entries(edits)) {
 
     let data = await fsa.readFile(ent);
     let json = JSONParse(data.toString());
-    await fsa.writeFile(ent, JSONStringify(json, null, 2));
+
+    // This write is just there to force a roundtrip and simplify diffing.
+    taskQueue.push(fsa.writeFile(ent, JSONStringify(json, null, 2)));
 
     runEdit(json.entries, edit);
 
@@ -71,9 +133,12 @@ for (const [wadPath, bins] of Object.entries(edits)) {
     logger.info(`Writing edited file: ${full}`);
 
     await fsa.mkdir(root, { recursive: true });
-    await fsa.writeFile(full, JSONStringify(json, null, 2));
+    taskQueue.push(fsa.writeFile(full, JSONStringify(json, null, 2)));
   }
 }
+
+await Promise.all(taskQueue);
+taskQueue.length = 0;
 
 logger.info("Executing ritobin.");
 await $`${cfg.paths.ritoBin} -i json -o bin -r ${cfg.paths.temp.mods} ${cfg.paths.temp.done}`;

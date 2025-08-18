@@ -125,7 +125,8 @@ for (const [wadPath, bins] of Object.entries(edits)) {
     let json = JSONParse(data.toString());
 
     // This write is just there to force a roundtrip and simplify diffing.
-    taskQueue.push(fsa.writeFile(ent, JSONStringify(json, null, 2)));
+    // We write it sync so that if we crash during editing we don't leave a half-written file.
+    await fsa.writeFile(ent, JSONStringify(json, null, 2));
 
     runEdit(json.entries, edit);
 
